@@ -64,7 +64,6 @@ Search a Qdrant collection using semantic search with OpenAI embeddings.
 
 - `collection_name`: Name of the Qdrant collection to search
 - `query_text`: The search query in natural language
-- `filter_json`: Optional JSON string with Qdrant filters
 - `limit`: Maximum number of results to return (default: 5)
 - `model`: OpenAI embedding model to use (default: text-embedding-3-small)
 
