@@ -1,0 +1,28 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - openaiApiKey
+    properties:
+      openaiApiKey:
+        type: string
+        description: OpenAI API key
+      qdrantUrl:
+        type: string
+        default: http://localhost:6333
+        description: URL to Qdrant instance
+      qdrantApiKey:
+        type: string
+        description: API key for Qdrant, if required
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({ command: "python", args: ["mcp_qdrant_server.py"], env: { OPENAI_API_KEY: config.openaiApiKey, QDRANT_URL: config.qdrantUrl, ...(config.qdrantApiKey ? { QDRANT_API_KEY: config.qdrantApiKey } : {}) } })
+  exampleConfig:
+    openaiApiKey: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    qdrantUrl: http://localhost:6333
+    qdrantApiKey: your-qdrant-api-key
