@@ -1,5 +1,7 @@
 # MCP Qdrant Server with OpenAI Embeddings
 
+[![smithery badge](https://smithery.ai/badge/@amansingh0311/mcp-qdrant-openai)](https://smithery.ai/server/@amansingh0311/mcp-qdrant-openai)
+
 This MCP server provides vector search capabilities using Qdrant vector database and OpenAI embeddings.
 
 ## Features
@@ -16,6 +18,15 @@ This MCP server provides vector search capabilities using Qdrant vector database
 
 ## Installation
 
+### Installing via Smithery
+
+To install Qdrant Vector Search Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@amansingh0311/mcp-qdrant-openai):
+
+```bash
+npx -y @smithery/cli install @amansingh0311/mcp-qdrant-openai --client claude
+```
+
+### Manual Installation
 1. Clone this repository:
 
    ```bash
