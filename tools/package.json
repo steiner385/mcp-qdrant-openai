@@ -1,0 +1,19 @@
+{
+  "name": "mcp-qdrant-openai-tools",
+  "version": "1.0.0",
+  "description": "Background indexing tools for MCP Qdrant OpenAI server",
+  "scripts": {
+    "indexer:start": "node background-indexer.js start",
+    "indexer:stop": "node background-indexer.js stop",
+    "indexer:status": "node indexer-control.js status"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3",
+    "cli-progress": "^3.12.0",
+    "commander": "^11.0.0",
+    "colors": "^1.4.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
