@@ -16,6 +16,8 @@ import os
 import sys
 import json
 import asyncio
+import subprocess
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 import logging
 
@@ -55,6 +57,9 @@ class MCPServer:
         # Initialize clients
         self.openai_client = OpenAI(api_key=self.openai_api_key)
         self.qdrant_client = QdrantClient(url=self.qdrant_url)
+        
+        # Tools directory for indexing controls
+        self.tools_dir = Path(__file__).parent / "tools"
         
         # Verify collection exists
         self._ensure_collection()
@@ -187,6 +192,75 @@ class MCPServer:
                             "type": "object",
                             "properties": {}
                         }
+                    },
+                    {
+                        "name": "index_directory",
+                        "description": "Index all files in a directory",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "directory_path": {
+                                    "type": "string",
+                                    "description": "Path to the directory to index"
+                                },
+                                "collection_name": {
+                                    "type": "string",
+                                    "description": "Collection name (optional, uses default if not provided)"
+                                }
+                            },
+                            "required": ["directory_path"]
+                        }
+                    },
+                    {
+                        "name": "start_background_indexing",
+                        "description": "Start the background file indexer",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "directory_path": {
+                                    "type": "string",
+                                    "description": "Directory to monitor for changes"
+                                },
+                                "initial_index": {
+                                    "type": "boolean",
+                                    "description": "Whether to index all existing files on startup",
+                                    "default": false
+                                }
+                            },
+                            "required": ["directory_path"]
+                        }
+                    },
+                    {
+                        "name": "stop_background_indexing",
+                        "description": "Stop the background file indexer",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {}
+                        }
+                    },
+                    {
+                        "name": "indexer_status",
+                        "description": "Get the status of the background indexer",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {}
+                        }
+                    },
+                    {
+                        "name": "pause_indexing",
+                        "description": "Pause the background indexer (keeps monitoring but doesn't index)",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {}
+                        }
+                    },
+                    {
+                        "name": "resume_indexing",
+                        "description": "Resume the background indexer",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {}
+                        }
                     }
                 ]
             }
@@ -211,6 +285,24 @@ class MCPServer:
             )
         elif tool_name == "collection_info":
             result = await self._get_collection_info()
+        elif tool_name == "index_directory":
+            result = await self._index_directory(
+                directory_path=arguments.get("directory_path"),
+                collection_name=arguments.get("collection_name")
+            )
+        elif tool_name == "start_background_indexing":
+            result = await self._start_background_indexing(
+                directory_path=arguments.get("directory_path"),
+                initial_index=arguments.get("initial_index", False)
+            )
+        elif tool_name == "stop_background_indexing":
+            result = await self._stop_background_indexing()
+        elif tool_name == "indexer_status":
+            result = await self._get_indexer_status()
+        elif tool_name == "pause_indexing":
+            result = await self._pause_indexing()
+        elif tool_name == "resume_indexing":
+            result = await self._resume_indexing()
         else:
             return self._error_response(request_id, f"Unknown tool: {tool_name}")
         
@@ -318,6 +410,204 @@ class MCPServer:
             }
         except Exception as e:
             logger.error(f"Collection info error: {e}")
+            return {"error": str(e)}
+    
+    def _run_indexer_command(self, command: str, args: List[str] = None) -> Dict[str, Any]:
+        """Run indexer control command and return result"""
+        try:
+            cmd = ["node", str(self.tools_dir / "indexer-control.js"), command]
+            if args:
+                cmd.extend(args)
+            
+            result = subprocess.run(
+                cmd,
+                cwd=str(self.tools_dir),
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            return {
+                "success": result.returncode == 0,
+                "output": result.stdout,
+                "error": result.stderr if result.returncode != 0 else None
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False,
+                "error": "Command timed out after 30 seconds"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _get_indexer_status_info(self) -> Dict[str, Any]:
+        """Get detailed indexer status from status file"""
+        try:
+            status_file = self.tools_dir / ".qdrant-indexing-status.json"
+            if status_file.exists():
+                with open(status_file) as f:
+                    status = json.load(f)
+                    
+                # Check if process is actually running
+                pid_file = self.tools_dir / ".qdrant-indexer.pid"
+                is_running = False
+                if pid_file.exists():
+                    try:
+                        pid = int(pid_file.read_text().strip())
+                        # Check if process exists
+                        os.kill(pid, 0)
+                        is_running = True
+                    except (OSError, ValueError):
+                        is_running = False
+                
+                status["is_running"] = is_running
+                return status
+            else:
+                return {
+                    "is_running": False,
+                    "message": "No status file found"
+                }
+        except Exception as e:
+            return {
+                "is_running": False,
+                "error": str(e)
+            }
+    
+    async def _index_directory(self, directory_path: str, collection_name: Optional[str] = None) -> Dict[str, Any]:
+        """Index all files in a directory"""
+        try:
+            if not directory_path:
+                return {"error": "directory_path is required"}
+            
+            # Run indexer script
+            script_path = Path(__file__).parent / "indexer.py"
+            cmd = [sys.executable, str(script_path), directory_path]
+            
+            env = os.environ.copy()
+            env["COLLECTION_NAME"] = collection_name or self.collection_name
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=300  # 5 minute timeout for indexing
+            )
+            
+            return {
+                "success": result.returncode == 0,
+                "directory": directory_path,
+                "collection": collection_name or self.collection_name,
+                "output": result.stdout if result.returncode == 0 else result.stderr
+            }
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False,
+                "error": "Indexing timed out after 5 minutes"
+            }
+        except Exception as e:
+            logger.error(f"Index directory error: {e}")
+            return {"error": str(e)}
+    
+    async def _start_background_indexing(self, directory_path: str, initial_index: bool = False) -> Dict[str, Any]:
+        """Start the background file indexer"""
+        try:
+            if not directory_path:
+                return {"error": "directory_path is required"}
+            
+            # Update config
+            config = {
+                "watchDir": directory_path,
+                "collectionName": self.collection_name,
+                "openaiApiKey": "${OPENAI_API_KEY}",
+                "qdrantUrl": self.qdrant_url,
+                "includePatterns": [
+                    "**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx",
+                    "**/*.json", "**/*.prisma", "**/*.md", "**/*.css"
+                ],
+                "excludePatterns": [
+                    "**/node_modules/**", "**/.git/**", "**/dist/**",
+                    "**/build/**", "**/coverage/**"
+                ]
+            }
+            
+            config_path = self.tools_dir / "indexer.config.json"
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            # Start indexer
+            args = ["--initial-index"] if initial_index else []
+            result = self._run_indexer_command("start", args)
+            
+            # Get status after starting
+            status = self._get_indexer_status_info()
+            
+            return {
+                "command": "start_background_indexing",
+                "directory": directory_path,
+                "initial_index": initial_index,
+                "result": result,
+                "status": status
+            }
+        except Exception as e:
+            logger.error(f"Start background indexing error: {e}")
+            return {"error": str(e)}
+    
+    async def _stop_background_indexing(self) -> Dict[str, Any]:
+        """Stop the background file indexer"""
+        try:
+            result = self._run_indexer_command("stop")
+            return {
+                "command": "stop_background_indexing",
+                "result": result
+            }
+        except Exception as e:
+            logger.error(f"Stop background indexing error: {e}")
+            return {"error": str(e)}
+    
+    async def _get_indexer_status(self) -> Dict[str, Any]:
+        """Get the status of the background indexer"""
+        try:
+            # Run status command for output
+            result = self._run_indexer_command("status")
+            
+            # Get detailed status
+            status = self._get_indexer_status_info()
+            
+            return {
+                "command": "indexer_status",
+                "status": status,
+                "output": result["output"]
+            }
+        except Exception as e:
+            logger.error(f"Get indexer status error: {e}")
+            return {"error": str(e)}
+    
+    async def _pause_indexing(self) -> Dict[str, Any]:
+        """Pause the background indexer"""
+        try:
+            result = self._run_indexer_command("pause")
+            return {
+                "command": "pause_indexing",
+                "result": result
+            }
+        except Exception as e:
+            logger.error(f"Pause indexing error: {e}")
+            return {"error": str(e)}
+    
+    async def _resume_indexing(self) -> Dict[str, Any]:
+        """Resume the background indexer"""
+        try:
+            result = self._run_indexer_command("resume")
+            return {
+                "command": "resume_indexing",
+                "result": result
+            }
+        except Exception as e:
+            logger.error(f"Resume indexing error: {e}")
             return {"error": str(e)}
     
     def _error_response(self, request_id: Any, message: str) -> Dict[str, Any]:
