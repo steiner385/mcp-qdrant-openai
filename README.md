@@ -119,21 +119,37 @@ npm run indexer:start:full  # Index all files and monitor changes
 
 ### Enhanced MCP Server (`mcp_server_enhanced.py`)
 
-All basic tools plus:
+The enhanced server includes simplified tool names and integrated indexing controls:
 
-- **delete_collection** - Remove a collection
-  - `collection_name`: Collection to delete
+#### Search Tools
+- **search** - Search for code using semantic similarity
+  - `query`: Search query text
+  - `limit`: Maximum results (default: 10)
+  - `filter`: Optional metadata filters
 
-- **query_points** - Direct point queries with filters
-  - `collection_name`: Collection name
-  - `ids`: List of point IDs (optional)
-  - `filter`: Qdrant filter object (optional)
-  - `limit`: Maximum results
+- **store** - Store code snippet with embeddings
+  - `content`: Content to store
+  - `metadata`: Metadata for the content
+  - `id`: Optional unique ID
 
-- **count_points** - Count points matching criteria
-  - `collection_name`: Collection name
-  - `filter`: Qdrant filter object (optional)
-  - `exact`: Use exact count (default: true)
+- **collection_info** - Get information about the collection
+
+#### Indexing Control Tools (New!)
+- **index_directory** - Index all files in a directory
+  - `directory_path`: Path to directory to index
+  - `collection_name`: Optional collection name
+
+- **start_background_indexing** - Start file monitoring and indexing
+  - `directory_path`: Directory to monitor
+  - `initial_index`: Index all files on startup (default: false)
+
+- **stop_background_indexing** - Stop the background indexer
+
+- **indexer_status** - Get current indexer status and statistics
+
+- **pause_indexing** - Pause indexing (keeps monitoring files)
+
+- **resume_indexing** - Resume paused indexing
 
 ## Indexing Tools
 
@@ -198,6 +214,7 @@ Excluded by default:
 
 Once configured, you can use natural language queries:
 
+### Search Operations
 ```
 What collections are available in my Qdrant database?
 
@@ -209,6 +226,25 @@ Find the database schema definitions
 
 Where is error handling implemented?
 ```
+
+### Indexing Operations (Enhanced Server)
+```
+Index all files in /home/user/my-project
+
+Start monitoring /home/user/my-project for file changes
+
+Start background indexing for /home/user/my-project with initial full index
+
+Check the status of the background indexer
+
+Pause the background indexing
+
+Resume the background indexing
+
+Stop the background indexer
+```
+
+The indexing tools allow you to control the entire indexing process without leaving Claude Code!
 
 ## Cost Considerations
 
