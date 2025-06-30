@@ -119,12 +119,19 @@ class QdrantBackgroundIndexer {
     try {
       if (fs.existsSync(CONFIG.STATE_FILES.PID)) {
         const pid = parseInt(fs.readFileSync(CONFIG.STATE_FILES.PID, 'utf8'));
-        // Check if process is running
-        process.kill(pid, 0);
-        return true;
+        try {
+          // Check if process is running
+          process.kill(pid, 0);
+          return true;
+        } catch (e) {
+          // Process not running, remove stale PID file
+          fs.unlinkSync(CONFIG.STATE_FILES.PID);
+          return false;
+        }
       }
     } catch (e) {
-      // Process not running
+      // Error reading PID file
+      return false;
     }
     return false;
   }

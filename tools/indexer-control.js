@@ -15,7 +15,7 @@ const STATE_FILES = {
   STATUS: '.qdrant-indexing-status.json'
 };
 
-const INDEXER_SCRIPT = path.join(__dirname, 'qdrant-background-indexer.cjs');
+const INDEXER_SCRIPT = path.join(__dirname, 'background-indexer.js');
 
 class QdrantIndexerControl {
   constructor() {
@@ -75,13 +75,18 @@ class QdrantIndexerControl {
     }
     
     // Start indexer in background
+    const out = fs.openSync(STATE_FILES.LOG, 'a');
+    const err = fs.openSync(STATE_FILES.LOG, 'a');
+    
     const child = spawn('node', args, {
       detached: true,
-      stdio: 'ignore',
+      stdio: ['ignore', out, err],
       cwd: process.cwd()
     });
 
     child.unref();
+    fs.closeSync(out);
+    fs.closeSync(err);
 
     // Wait a moment for startup
     await new Promise(resolve => setTimeout(resolve, 2000));

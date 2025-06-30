@@ -42,4 +42,11 @@ cat > "$(dirname "$0")/indexer.config.json" <<EOF
 EOF
 
 echo "Starting background indexer for: $TARGET_DIR"
+
+# Make sure we have OpenAI API key
+if [ -z "$OPENAI_API_KEY" ]; then
+    echo "Warning: OPENAI_API_KEY is not set. The indexer may fail."
+    echo "Please set: export OPENAI_API_KEY='your-key'"
+fi
+
 cd "$(dirname "$0")" && npm run indexer:start
