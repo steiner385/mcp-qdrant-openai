@@ -412,7 +412,7 @@ class QdrantBackgroundIndexer {
   async indexFile(filePath) {
     // Use the Python indexer
     return new Promise((resolve, reject) => {
-      const scriptPath = path.join(__dirname, 'qdrant-openai-indexer.py');
+      const scriptPath = path.join(__dirname, '..', 'indexer.py');
       
       const child = spawn('python3', [scriptPath, '--file', filePath], {
         cwd: process.cwd(),
@@ -528,6 +528,25 @@ class QdrantBackgroundIndexer {
 
 // Main execution
 if (require.main === module) {
+  // Load configuration if available
+  const configPath = path.join(__dirname, 'indexer.config.json');
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    if (config.watchDir) {
+      process.chdir(path.resolve(config.watchDir));
+    }
+    // Set environment variables from config
+    if (config.openaiApiKey && config.openaiApiKey !== '${OPENAI_API_KEY}') {
+      process.env.OPENAI_API_KEY = config.openaiApiKey;
+    }
+    if (config.qdrantUrl) {
+      process.env.QDRANT_URL = config.qdrantUrl;
+    }
+    if (config.collectionName) {
+      process.env.COLLECTION_NAME = config.collectionName;
+    }
+  }
+  
   const indexer = new QdrantBackgroundIndexer();
   
   // Handle command line arguments

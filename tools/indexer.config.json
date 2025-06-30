@@ -1,0 +1,23 @@
+{
+  "watchDir": "/home/tony/GitHub/KinDash",
+  "collectionName": "kindash-codebase",
+  "openaiApiKey": "${OPENAI_API_KEY}",
+  "qdrantUrl": "http://localhost:6333",
+  "includePatterns": [
+    "**/*.ts",
+    "**/*.tsx", 
+    "**/*.js",
+    "**/*.jsx",
+    "**/*.json",
+    "**/*.prisma",
+    "**/*.md",
+    "**/*.css"
+  ],
+  "excludePatterns": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**"
+  ]
+}

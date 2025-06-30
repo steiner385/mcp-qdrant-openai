@@ -3,9 +3,16 @@
   "version": "1.0.0",
   "description": "Background indexing tools for MCP Qdrant OpenAI server",
   "scripts": {
-    "indexer:start": "node background-indexer.js start",
-    "indexer:stop": "node background-indexer.js stop",
-    "indexer:status": "node indexer-control.js status"
+    "indexer:start": "node indexer-control.js start",
+    "indexer:stop": "node indexer-control.js stop",
+    "indexer:status": "node indexer-control.js status",
+    "indexer:restart": "node indexer-control.js restart",
+    "indexer:pause": "node indexer-control.js pause",
+    "indexer:resume": "node indexer-control.js resume",
+    "indexer:reindex": "node indexer-control.js reindex",
+    "indexer:clear": "node indexer-control.js clear",
+    "indexer:logs": "node indexer-control.js logs",
+    "indexer:watch": "node indexer-control.js watch"
   },
   "dependencies": {
     "chokidar": "^3.5.3",

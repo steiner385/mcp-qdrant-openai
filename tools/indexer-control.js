@@ -68,8 +68,14 @@ class QdrantIndexerControl {
 
     console.log('Starting Qdrant background indexer...');
     
+    // Get directory argument if provided
+    const args = [INDEXER_SCRIPT];
+    if (process.argv[3]) {
+      args.push(process.argv[3]);
+    }
+    
     // Start indexer in background
-    const child = spawn('node', [INDEXER_SCRIPT], {
+    const child = spawn('node', args, {
       detached: true,
       stdio: 'ignore',
       cwd: process.cwd()
