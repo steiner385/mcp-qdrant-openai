@@ -74,6 +74,12 @@ class QdrantIndexerControl {
       args.push(process.argv[3]);
     }
     
+    // Check for --initial-index flag
+    if (process.argv.includes('--initial-index')) {
+      args.push('--initial-index');
+      console.log('Initial indexing enabled - will index all existing files');
+    }
+    
     // Start indexer in background
     const out = fs.openSync(STATE_FILES.LOG, 'a');
     const err = fs.openSync(STATE_FILES.LOG, 'a');
@@ -352,17 +358,17 @@ Qdrant Indexer Control
 Usage: node ${path.basename(__filename)} <command>
 
 Commands:
-  start     Start the background indexer
-  stop      Stop the background indexer
-  restart   Restart the background indexer
-  status    Show indexer status
-  pause     Pause indexing (keeps monitoring)
-  resume    Resume indexing
-  reindex   Clear and re-index all files
-  clear     Clear all indexer data
-  logs      Tail indexer logs
-  watch     Watch live status
-  help      Show this help
+  start [--initial-index]  Start the background indexer (optionally index all files on startup)
+  stop                     Stop the background indexer
+  restart                  Restart the background indexer
+  status                   Show indexer status
+  pause                    Pause indexing (keeps monitoring)
+  resume                   Resume indexing
+  reindex                  Clear and re-index all files
+  clear                    Clear all indexer data
+  logs                     Tail indexer logs
+  watch                    Watch live status
+  help                     Show this help
 
 NPM Scripts:
   npm run qdrant:start    Start indexer

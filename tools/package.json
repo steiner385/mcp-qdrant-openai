@@ -4,6 +4,7 @@
   "description": "Background indexing tools for MCP Qdrant OpenAI server",
   "scripts": {
     "indexer:start": "node indexer-control.js start",
+    "indexer:start:full": "node indexer-control.js start --initial-index",
     "indexer:stop": "node indexer-control.js stop",
     "indexer:status": "node indexer-control.js status",
     "indexer:restart": "node indexer-control.js restart",

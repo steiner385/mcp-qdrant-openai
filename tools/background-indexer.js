@@ -82,8 +82,9 @@ class QdrantBackgroundIndexer {
         return;
       }
 
-      // Write PID file
-      fs.writeFileSync(CONFIG.STATE_FILES.PID, process.pid.toString());
+      // Write PID file (always in the script directory)
+      const pidPath = path.join(__dirname, CONFIG.STATE_FILES.PID);
+      fs.writeFileSync(pidPath, process.pid.toString());
 
       // Load state
       await this.loadState();
@@ -117,15 +118,16 @@ class QdrantBackgroundIndexer {
 
   isRunning() {
     try {
-      if (fs.existsSync(CONFIG.STATE_FILES.PID)) {
-        const pid = parseInt(fs.readFileSync(CONFIG.STATE_FILES.PID, 'utf8'));
+      const pidPath = path.join(__dirname, CONFIG.STATE_FILES.PID);
+      if (fs.existsSync(pidPath)) {
+        const pid = parseInt(fs.readFileSync(pidPath, 'utf8'));
         try {
           // Check if process is running
           process.kill(pid, 0);
           return true;
         } catch (e) {
           // Process not running, remove stale PID file
-          fs.unlinkSync(CONFIG.STATE_FILES.PID);
+          fs.unlinkSync(pidPath);
           return false;
         }
       }
@@ -137,7 +139,8 @@ class QdrantBackgroundIndexer {
   }
 
   setupLogging() {
-    this.logStream = fs.createWriteStream(CONFIG.STATE_FILES.LOG, { flags: 'a' });
+    const logPath = path.join(__dirname, CONFIG.STATE_FILES.LOG);
+    this.logStream = fs.createWriteStream(logPath, { flags: 'a' });
   }
 
   log(level, message) {
@@ -155,9 +158,10 @@ class QdrantBackgroundIndexer {
 
   async loadState() {
     // Load indexed files
-    if (fs.existsSync(CONFIG.STATE_FILES.INDEXED)) {
+    const indexedPath = path.join(__dirname, CONFIG.STATE_FILES.INDEXED);
+    if (fs.existsSync(indexedPath)) {
       try {
-        const data = JSON.parse(fs.readFileSync(CONFIG.STATE_FILES.INDEXED, 'utf8'));
+        const data = JSON.parse(fs.readFileSync(indexedPath, 'utf8'));
         this.indexedFiles = new Set(data.files || []);
         this.log('info', `Loaded ${this.indexedFiles.size} indexed files`);
       } catch (e) {
@@ -166,9 +170,10 @@ class QdrantBackgroundIndexer {
     }
 
     // Load queue
-    if (fs.existsSync(CONFIG.STATE_FILES.QUEUE)) {
+    const queuePath = path.join(__dirname, CONFIG.STATE_FILES.QUEUE);
+    if (fs.existsSync(queuePath)) {
       try {
-        const data = JSON.parse(fs.readFileSync(CONFIG.STATE_FILES.QUEUE, 'utf8'));
+        const data = JSON.parse(fs.readFileSync(queuePath, 'utf8'));
         this.queue = data.queue || [];
         this.log('info', `Loaded ${this.queue.length} queued files`);
       } catch (e) {
@@ -177,9 +182,10 @@ class QdrantBackgroundIndexer {
     }
 
     // Load status
-    if (fs.existsSync(CONFIG.STATE_FILES.STATUS)) {
+    const statusPath = path.join(__dirname, CONFIG.STATE_FILES.STATUS);
+    if (fs.existsSync(statusPath)) {
       try {
-        const data = JSON.parse(fs.readFileSync(CONFIG.STATE_FILES.STATUS, 'utf8'));
+        const data = JSON.parse(fs.readFileSync(statusPath, 'utf8'));
         this.stats = { ...this.stats, ...data };
       } catch (e) {
         this.log('error', 'Failed to load status: ' + e.message);
@@ -190,13 +196,15 @@ class QdrantBackgroundIndexer {
   saveState() {
     try {
       // Save indexed files
-      fs.writeFileSync(CONFIG.STATE_FILES.INDEXED, JSON.stringify({
+      const indexedPath = path.join(__dirname, CONFIG.STATE_FILES.INDEXED);
+      fs.writeFileSync(indexedPath, JSON.stringify({
         files: Array.from(this.indexedFiles),
         lastUpdated: new Date().toISOString()
       }, null, 2));
 
       // Save queue
-      fs.writeFileSync(CONFIG.STATE_FILES.QUEUE, JSON.stringify({
+      const queuePath = path.join(__dirname, CONFIG.STATE_FILES.QUEUE);
+      fs.writeFileSync(queuePath, JSON.stringify({
         queue: this.queue,
         lastUpdated: new Date().toISOString()
       }, null, 2));
@@ -222,7 +230,8 @@ class QdrantBackgroundIndexer {
     };
 
     try {
-      fs.writeFileSync(CONFIG.STATE_FILES.STATUS, JSON.stringify(status, null, 2));
+      const statusPath = path.join(__dirname, CONFIG.STATE_FILES.STATUS);
+      fs.writeFileSync(statusPath, JSON.stringify(status, null, 2));
     } catch (e) {
       this.log('error', 'Failed to update status: ' + e.message);
     }
@@ -261,11 +270,14 @@ class QdrantBackgroundIndexer {
       this.log('error', 'Failed to count files: ' + e.message);
     }
 
+    // Check if we should do initial indexing
+    const doInitialIndex = process.argv.includes('--initial-index');
+    
     // Create watcher
     this.watcher = chokidar.watch(INCLUDE_PATTERNS, {
       ignored: EXCLUDE_PATTERNS,
       persistent: true,
-      ignoreInitial: true, // Don't index everything on startup
+      ignoreInitial: !doInitialIndex, // Index on startup if flag is set
       cwd: process.cwd()
     });
 
@@ -484,7 +496,8 @@ class QdrantBackgroundIndexer {
 
     // Remove PID file
     try {
-      fs.unlinkSync(CONFIG.STATE_FILES.PID);
+      const pidPath = path.join(__dirname, CONFIG.STATE_FILES.PID);
+      fs.unlinkSync(pidPath);
     } catch (e) {}
 
     process.exit(0);
@@ -525,7 +538,8 @@ class QdrantBackgroundIndexer {
     // Remove all state files
     Object.values(CONFIG.STATE_FILES).forEach(file => {
       try {
-        fs.unlinkSync(file);
+        const filePath = path.join(__dirname, file);
+        fs.unlinkSync(filePath);
       } catch (e) {}
     });
     
